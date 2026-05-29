@@ -12,7 +12,7 @@ WHITE="\033[37m"
 RESET="\033[0m"
 
 # 项目配置
-PROJECT_NAME="J2ME 游戏画面适配工具 (Debian 版)"
+PROJECT_NAME="J2ME 游戏画面适配工具"
 REPO_URL="https://github.com/XXIF/J2Me_ReSize"
 ASM_JAR="asm-4.0.jar"
 ASM_URL="https://repo1.maven.org/maven2/org/ow2/asm/asm/4.0/asm-4.0.jar"
@@ -119,7 +119,7 @@ elif [ -f "$JDK_DIR/bin/java" ]; then
 else
     echo -e "      ${YELLOW}下载 Temurin 8 (~140MB, 请耐心等待)${RESET}"
     
-    if download_large_file "${JDK_TGZ}" "${JDK_ORIGIN}" "${JDK_MIRROR}" 104857600; then
+    if download_large_file "${JDK_TGZ}" "${JDK_ORIGIN}" "${JDK_MIRROR}" 52428800; then
         echo -e "      正在解压安装..."
         
         rm -rf "$JDK_DIR" "$HOME/java/_extract" 2>/dev/null || true
