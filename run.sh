@@ -10,6 +10,24 @@ CYAN="\033[36m"
 WHITE="\033[37m"
 RESET="\033[0m"
 
+# JDK 自动检测（兼容 ~/java/jdk8 安装）
+if ! command -v javac &>/dev/null; then
+    for JDK_CANDIDATE in "$HOME/java/jdk8" "/usr/lib/jvm/java-8-openjdk-amd64" "/usr/lib/jvm/default-java"; do
+        if [ -f "$JDK_CANDIDATE/bin/javac" ]; then
+            export JAVA_HOME="$JDK_CANDIDATE"
+            export PATH="$JAVA_HOME/bin:$PATH"
+            export LD_LIBRARY_PATH="$JAVA_HOME/lib:${LD_LIBRARY_PATH:-}"
+            hash -r 2>/dev/null || true
+            break
+        fi
+    done
+fi
+
+if ! command -v javac &>/dev/null; then
+    echo -e "${RED}[错误] javac 未找到，请先运行 install.sh 安装 JDK${RESET}"
+    exit 1
+fi
+
 # 固定配置（J2ME 标准编译环境）
 ASM_JAR="asm-4.0.jar"
 CLDC_JAR="cldcapi11.jar"
@@ -845,11 +863,11 @@ fi
 # 步骤N: 编译插桩代码（含 CLDC/MIDP 标准库确保 J2ME 类引用完整）
 echo -e "${YELLOW}[${COMPILE_STEP}/${TOTAL_STEPS}] 编译插桩代码${RESET}"
 # ResizeHook 运行在宿主机（工具），-source 8 -target 8 保证 JDK 8/17 均兼容
-javac -source 8 -target 8 -cp "${CP_ALL}" ResizeHook.java
+javac -encoding UTF-8 -source 8 -target 8 -cp "${CP_ALL}" ResizeHook.java
 if [ "${HOOK_MODE}" = "bg" ]; then
     # ResizeBgHelper 被注入 JAR → 必须对齐游戏 class 版本号且不带栈帧
     # -source 8 -target 8: 产出 v52 class，避免默认 v65 跨度过大
-    javac -source 8 -target 8 -cp "${CP_ALL}" ResizeBgHelper.java ClassVersionPatcher.java StripFrames.java
+    javac -encoding UTF-8 -source 8 -target 8 -cp "${CP_ALL}" ResizeBgHelper.java ClassVersionPatcher.java StripFrames.java
     # 验证辅助类编译产物存在
     if [ ! -f "ResizeBgHelper.class" ]; then
         echo -e "${RED}[错误] ResizeBgHelper.class 编译失败，请检查 J2ME 标准库是否完整${RESET}"
