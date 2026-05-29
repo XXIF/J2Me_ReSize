@@ -19,6 +19,11 @@ ASM_URL="https://repo1.maven.org/maven2/org/ow2/asm/asm/4.0/asm-4.0.jar"
 CLDC_JAR="cldcapi11.jar"
 MIDP_LIB="midpapi20.jar"
 
+# Adoptium Temurin 8 JDK（原生 x64，兼容所有现代 Linux）
+JDK_TGZ="OpenJDK8U-jdk_x64_linux_hotspot_8u492b09.tar.gz"
+JDK_ORIGIN="https://github.com/adoptium/temurin8-binaries/releases/download/jdk8u492-b09/${JDK_TGZ}"
+JDK_MIRROR="https://github.dpik.top/https://github.com/adoptium/temurin8-binaries/releases/download/jdk8u492-b09/${JDK_TGZ}"
+
 # 双源下载配置（GitHub Raw）
 ORIGIN_BASE="https://raw.githubusercontent.com/XXIF/J2Me_ReSize/main"
 MIRROR_BASE="https://github.dpik.top/https://raw.githubusercontent.com/XXIF/J2Me_ReSize/main"
@@ -102,23 +107,68 @@ echo -e "\n${YELLOW}[+] 安装基础工具${RESET}"
 sudo apt-get install -y -qq wget unzip imagemagick ffmpeg python3 2>/dev/null
 echo -e "${GREEN}[√] 基础工具就绪${RESET}"
 
-# ========== OpenJDK 8 安装（Debian apt 源）==========
-echo -e "\n${YELLOW}[+] 安装 OpenJDK 8${RESET}"
+# ========== Adoptium Temurin 8 JDK（原生 x64，全版本 Linux 兼容）==========
+echo -e "\n${YELLOW}[+] 安装 OpenJDK 8 (Temurin)${RESET}"
+JDK_DIR="$HOME/java/jdk8"
 
 if java -version &>/dev/null; then
     JAVA_EXIST_VER=$(java -version 2>&1 | head -1 || echo "unknown")
     echo -e "      ${GREEN}[√] Java 已安装: ${JAVA_EXIST_VER}${RESET}"
+elif [ -f "$JDK_DIR/bin/java" ]; then
+    echo -e "      ${GREEN}[√] JDK 目录已存在，配置环境变量${RESET}"
 else
-    echo -e "      ${YELLOW}通过 apt 安装 openjdk-8-jdk...${RESET}"
-    sudo apt-get install -y -qq openjdk-8-jdk 2>/dev/null
+    echo -e "      ${YELLOW}下载 Temurin 8 (~140MB, 请耐心等待)${RESET}"
     
-    if ! java -version &>/dev/null; then
-        echo -e "${RED}[!] OpenJDK 8 安装失败${RESET}"
-        echo -e "${RED}       请手动执行: sudo apt-get install openjdk-8-jdk${RESET}"
+    if download_large_file "${JDK_TGZ}" "${JDK_ORIGIN}" "${JDK_MIRROR}" 104857600; then
+        echo -e "      正在解压安装..."
+        
+        rm -rf "$JDK_DIR" "$HOME/java/_extract" 2>/dev/null || true
+        mkdir -p "$HOME/java" "$HOME/java/_extract"
+        
+        tar -xzf "${JDK_TGZ}" -C "$HOME/java/_extract" 2>/dev/null
+        rm -f "${JDK_TGZ}"
+        
+        # 找到解压后的顶层目录（如 jdk8u492-b09）
+        EXTRACTED_DIR=$(ls -d "$HOME/java/_extract"/*/ 2>/dev/null | head -1)
+        if [ -n "$EXTRACTED_DIR" ] && [ -f "$EXTRACTED_DIR/bin/java" ]; then
+            mv "$EXTRACTED_DIR" "$JDK_DIR"
+        else
+            # 降级搜索
+            JAVA_BIN=$(find "$HOME/java/_extract" -name "java" -type f 2>/dev/null | head -1)
+            if [ -n "$JAVA_BIN" ]; then
+                mv "$(dirname "$(dirname "$JAVA_BIN")")" "$JDK_DIR"
+            fi
+        fi
+        rm -rf "$HOME/java/_extract"
+    fi
+    
+    if [ ! -f "$JDK_DIR/bin/java" ]; then
+        echo -e "${RED}[!] JDK 安装失败${RESET}"
         exit 1
     fi
-    JAVA_VER=$(java -version 2>&1 | head -1)
-    echo -e "      ${GREEN}[√] ${JAVA_VER}${RESET}"
+fi
+
+# 配置环境变量
+export JAVA_HOME="$JDK_DIR"
+export PATH="$JDK_DIR/bin:$PATH"
+export LD_LIBRARY_PATH="$JDK_DIR/lib:$LD_LIBRARY_PATH"
+hash -r 2>/dev/null || true
+
+# 写入 ~/.bashrc（幂等）
+if ! grep -q "JAVA_HOME" "$HOME/.bashrc" 2>/dev/null; then
+    cat >> "$HOME/.bashrc" << 'BASHEOF'
+export JAVA_HOME="$HOME/java/jdk8"
+export PATH="$JAVA_HOME/bin:$PATH"
+export LD_LIBRARY_PATH="$JAVA_HOME/lib:$LD_LIBRARY_PATH"
+BASHEOF
+fi
+
+# 创建 ~/bin/ 符号链接（Debian 默认 PATH 包含 ~/bin）
+if [ -d "$HOME/bin" ] || ! [ -e "$HOME/bin" ]; then
+    mkdir -p "$HOME/bin"
+    for jbin in java javac jar; do
+        [ -f "$JDK_DIR/bin/$jbin" ] && ln -sf "$JDK_DIR/bin/$jbin" "$HOME/bin/$jbin"
+    done
 fi
 
 # 最终校验
@@ -126,7 +176,9 @@ if ! java -version &>/dev/null; then
     echo -e "${RED}[!] Java 环境不可用${RESET}"
     exit 1
 fi
-echo -e "${GREEN}[√] Java 运行环境就绪${RESET}"
+JAVA_VER=$(java -version 2>&1 | head -1)
+echo -e "      ${GREEN}[√] ${JAVA_VER}${RESET}"
+echo -e "${GREEN}[√] Java (Temurin 8) 运行环境就绪${RESET}"
 
 # ========== ASM 4.0 双源下载 ==========
 echo -e "\n${YELLOW}[+] 下载 ASM 4.0 字节码库${RESET}"
