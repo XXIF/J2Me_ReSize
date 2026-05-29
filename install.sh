@@ -151,7 +151,7 @@ fi
 # 配置环境变量
 export JAVA_HOME="$JDK_DIR"
 export PATH="$JDK_DIR/bin:$PATH"
-export LD_LIBRARY_PATH="$JDK_DIR/lib:$LD_LIBRARY_PATH"
+export LD_LIBRARY_PATH="$JDK_DIR/lib:${LD_LIBRARY_PATH:-}"
 hash -r 2>/dev/null || true
 
 # 写入 ~/.bashrc（幂等）
@@ -159,7 +159,7 @@ if ! grep -q "JAVA_HOME" "$HOME/.bashrc" 2>/dev/null; then
     cat >> "$HOME/.bashrc" << 'BASHEOF'
 export JAVA_HOME="$HOME/java/jdk8"
 export PATH="$JAVA_HOME/bin:$PATH"
-export LD_LIBRARY_PATH="$JAVA_HOME/lib:$LD_LIBRARY_PATH"
+export LD_LIBRARY_PATH="$JAVA_HOME/lib:${LD_LIBRARY_PATH:-}"
 BASHEOF
 fi
 
